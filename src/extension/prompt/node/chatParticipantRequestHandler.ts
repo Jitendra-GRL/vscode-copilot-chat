@@ -19,6 +19,7 @@ import { fileTreePartToMarkdown } from '../../../util/common/fileTree';
 import { isLocation, isSymbolInformation } from '../../../util/common/types';
 import { coalesce } from '../../../util/vs/base/common/arrays';
 import { CancellationToken } from '../../../util/vs/base/common/cancellation';
+import { CopilotLogger } from '../../log/copilotLogger';
 import { Event } from '../../../util/vs/base/common/event';
 import { Schemas } from '../../../util/vs/base/common/network';
 import { mixin } from '../../../util/vs/base/common/objects';
@@ -270,6 +271,24 @@ export class ChatParticipantRequestHandler {
 				}
 			} satisfies ICopilotChatResult, true);
 
+			// Log the chat interaction
+			try {
+				const responseText = this.extractResponseText(result);
+				CopilotLogger.logChat(
+					this.request.prompt,
+					responseText,
+					{
+						sessionId: this.conversation.sessionId,
+						agentId: this.chatAgentArgs.agentId,
+						command: this.request.command,
+						location: ChatLocation.toStringShorter(this.location)
+					}
+				);
+			} catch (logError) {
+				// Don't let logging errors affect chat functionality
+				this._logService.logger.warn(`Failed to log chat interaction: ${logError}`);
+			}
+
 			return <ICopilotChatResult>result;
 
 		} catch (err) {
@@ -316,6 +335,32 @@ export class ChatParticipantRequestHandler {
 			this.turn.setResponse(TurnStatus.Error, { type: 'meta', message }, undefined, chatResult);
 			return chatResult;
 		}
+	}
+
+	/**
+	 * Extract text content from a ChatResult for logging purposes
+	 */
+	private extractResponseText(result: ChatResult): string {
+		if (!result || typeof result !== 'object') {
+			return '';
+		}
+		
+		// Try to extract text from different possible response formats
+		if ('response' in result && typeof result.response === 'string') {
+			return result.response;
+		}
+		
+		if ('content' in result && typeof result.content === 'string') {
+			return result.content;
+		}
+		
+		if ('text' in result && typeof result.text === 'string') {
+			return result.text;
+		}
+		
+		// Fallback: stringify the result but limit length
+		const stringified = JSON.stringify(result);
+		return stringified.length > 500 ? stringified.substring(0, 500) + '...' : stringified;
 	}
 }
 
