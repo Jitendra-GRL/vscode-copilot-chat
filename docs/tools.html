@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>So you want to write a tool</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h2 id="so-you-want-to-write-a-tool">So you want to write a tool</h2>
+<p>New to LLM tools? Here are some starting resources</p>
+<ul>
+<li><a href="https://code.visualstudio.com/api/extension-guides/tools">https://code.visualstudio.com/api/extension-guides/tools</a></li>
+<li><a href="https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview">https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview</a></li>
+<li><a href="https://platform.openai.com/docs/guides/function-calling?api-mode=chat">https://platform.openai.com/docs/guides/function-calling?api-mode=chat</a></li>
+<li><a href="https://www.anthropic.com/engineering/building-effective-agents">https://www.anthropic.com/engineering/building-effective-agents</a></li>
+</ul>
+<p>This is aimed at adding tools to vscode-copilot-chat, but much of it would apply to tools in other extensions or MCP servers as well.</p>
+<h3 id="do-we-need-a-new-tool">Do we need a new tool?</h3>
+<p>First, consider whether a new built-in tool is needed. Tools should be built-in if they are related to core VS Code functionality or the core search/edit/terminal agent loop and are needed for common OOB scenarios. Consider whether the tool can be contributed from another extension instead. If the task can be done through normal terminal commands, then it may not need its own tool.</p>
+<h3 id="static-part">Static part</h3>
+<p>First, add an entry in vscode-copilot's package.json under <code>contributes.languageModelTools</code>:</p>
+<ul>
+<li>Give it a name that starts with <code>copilot_</code>- this pattern is protected for our use only</li>
+<li>Give it a reasonable <code>toolReferenceName</code> and a localized <code>userDescription</code>.
+<ul>
+<li><code>toolReferenceName</code> is the name used in the tool picker, and to reference the tool with <code>#</code>, and to add the tool to a mode or toolset.</li>
+<li>Consider whether the tool should be available on its own or part of a toolset. Add it to a toolset in <code>contributes.languageModelToolSets</code> if needed.</li>
+<li>Otherwise, set <code>&quot;canBeReferencedInPrompt&quot;: true</code> and add an <code>icon</code>.</li>
+</ul>
+</li>
+<li>Now write your <code>modelDescription</code>. This is what the LLM uses to decide whether to use your tool. This should <em>not</em> be localized. Be very detailed:
+<ul>
+<li>What exactly does the tool do?</li>
+<li>What kind of information does it return?</li>
+<li>In what cases should the tool be used?</li>
+<li>Read more <a href="https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview#best-practices-for-tool-definitions">best practices</a></li>
+</ul>
+</li>
+<li>If the tool takes input, add an <code>inputSchema</code>. This is a JSON schema which must describe an object with the properties that the tool takes. Describe the properties in detail. File paths should be absolute paths. Think carefully about which properties are <code>required</code>.</li>
+<li>In <code>toolNames.ts</code>, add entries to <code>ToolName</code>, <code>ContributedToolName</code>, <code>contributedToolNameToToolNames</code>. Follow the naming patterns of other tools. <code>ToolName</code> is the real name of your tool that the LLM will see. It should also be clear. A good pattern is to start with a verb, e.g. <code>read_file</code>.</li>
+<li>And remember to look for other tools that do similar things, and try to ensure your tool is aligned with them in the input it takes and the terminology it uses, and doesn't overlap in behavior. That will ensure that an LLM can understand how to use them together.</li>
+</ul>
+<h3 id="tool-implementation-part">Tool implementation part</h3>
+<p>Then, implement your tool in <code>src/extension/tools/node</code>:</p>
+<ul>
+<li>If your tool takes input, write an interface and be sure that it matches the schema in package.json exactly, including which properties are required.</li>
+<li>A typical tool can implement <code>vscode.LanguageModelTool</code>. More sophisticated tools can implement <code>ICopilotTool</code>, which gives you some extra functionality.</li>
+<li>Call <code>ToolRegistry.registerTool(YourTool);</code> and import your tool file in <code>allTools.ts</code>.</li>
+<li>Is your tool relevant in simulator/swebench scenarios? If so, check that it works.</li>
+<li>I recommend using prompt-tsx for your tool result if it's not a simple string. This lets you compose the result from multiple parts or reuse other prompt-tsx components.</li>
+</ul>
+<h3 id="input-validation">Input validation</h3>
+<ul>
+<li>The input will be validated against the schema in package.json, so you don't need to repeat that validation in your tool.</li>
+<li>When taking paths from the LLM as input, use <code>IPromptPathRepresentationService</code>.</li>
+</ul>
+<h3 id="error-handling">Error handling</h3>
+<p>If something goes wrong, throw an error with a message that will make sense to the LLM. It will be caught by the agent and shown to the LLM. Should the model call your tool again with different arguments, or do something different? Make sure the model can understand what to do next.</p>
+<h3 id="tool-confirmations">Tool confirmations</h3>
+<p>If the tool has a potentially dangerous side-effect (e.g. the terminal tool), it MUST ask for the user's confirmation before running. Do this by returning <code>PreparedToolInvocation.confirmationMessages</code>. Give enough context in the confirmation message for the user to understand what the tool will do, and what the risk is. The <code>message</code> can be a markdown string containing a codeblock.</p>
+<h3 id="make-it-look-good">Make it look good</h3>
+<ul>
+<li>Fill out <code>PreparedToolInvocation.invocationMessage</code> and <code>pastTenseMessage</code> with a helpful message to show in the UI.</li>
+<li>Don't add your own <code>...</code> to the end of the tool message</li>
+<li>If you want the tool message to react to the result of the tool, you can use <code>ExtendedLanguageModelToolResult.toolResultMessage</code>.</li>
+<li>Use markdown where appropriate.</li>
+<li>Setting <code>toolResultDetails</code> will make the tool message an expandable list of URIs to show the tool's result. (e.g. file search, text search)</li>
+</ul>
+<p><img src="file:///c:\GRL\prompts_console_log_automation\vscode-copilot-chat\docs\media\expandable-tool-result.png" alt=""></p>
+<ul>
+<li>If you want a clickable file widget in the tool message (e.g. read file), set <code>ExtendedLanguageModelToolResult.toolResultMessage</code> to a MarkdownString, using <code>formatUriForFileWidget</code>. This currently can't be combined with the <code>toolResultDetails</code> option.</li>
+</ul>
+<p><img src="file:///c:\GRL\prompts_console_log_automation\vscode-copilot-chat\docs\media\file-widget.png" alt=""></p>
+<h3 id="testing">Testing</h3>
+<p>Consider writing a unit test for your tool. One example to copy is <a href="https://github.com/microsoft/vscode-copilot/blob/a2b8af8b8e7286d4da77ff4108b6bcdeb1441d79/src/extension/tools/node/test/readFile.spec.tsx#L40-L59"><code>readFile.spec.tsx</code></a>. This test invokes the tool with some hardcoded arguments and checks the result against a snapshot.</p>
+<h3 id="read-the-prompt">Read the prompt</h3>
+<p>Read the prompt. There is no replacement for just using your tool a lot, and reading the prompt. Read the whole thing top to bottom. What story does it tell? Get familiar with the prompt as a whole, don't get tunnel vision for one message. Does your new tool result make sense to you as a human? Is it formatted in a way that's consistent with other tool results and context in the user message?</p>
+<p><img src="file:///c:\GRL\prompts_console_log_automation\vscode-copilot-chat\docs\media\debug-view.png" alt="">
+<img src="file:///c:\GRL\prompts_console_log_automation\vscode-copilot-chat\docs\media\tool-log.png" alt=""></p>
+
+            
+            
+        </body>
+        </html>
