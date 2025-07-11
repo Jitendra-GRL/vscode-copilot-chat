@@ -185,9 +185,14 @@ export type RequestInlineTelemetryMeasurements = RequestTelemetryMeasurements & 
 export class ChatTelemetryBuilder {
 
 	public readonly baseUserTelemetry: ConversationalBaseTelemetryData = createTelemetryWithId();
+	private _lastTelemetry: InlineChatTelemetry | PanelChatTelemetry | undefined;
 
 	public get telemetryMessageId() {
 		return this.baseUserTelemetry.properties.messageId;
+	}
+
+	public get model(): string | undefined {
+		return this._lastTelemetry?.model;
 	}
 
 	constructor(
@@ -206,7 +211,7 @@ export class ChatTelemetryBuilder {
 			? InlineChatTelemetry
 			: PanelChatTelemetry;
 
-		return new Ctor(
+		this._lastTelemetry = new Ctor(
 			this._sessionId,
 			this._documentContext!,
 			this._firstTurn,
@@ -224,6 +229,8 @@ export class ChatTelemetryBuilder {
 			this._telemetryService,
 			this._languageDiagnosticsService,
 		);
+
+		return this._lastTelemetry;
 	}
 }
 
@@ -254,6 +261,10 @@ export abstract class ChatTelemetry<C extends IDocumentContext | undefined = IDo
 
 	public get editLineCount(): number {
 		return this._editLineCount;
+	}
+
+	public get model(): string {
+		return this._endpoint.model;
 	}
 
 	constructor(

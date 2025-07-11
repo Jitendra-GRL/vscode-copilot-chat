@@ -4,8 +4,8 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as fs from 'fs';
-import * as path from 'path';
 import * as os from 'os';
+import * as path from 'path';
 
 /**
  * Simple logger to capture Copilot prompt and response pairs
@@ -31,7 +31,7 @@ export class CopilotLogger {
         try {
             const logLine = JSON.stringify(entry) + '\n';
             fs.appendFileSync(this.LOG_FILE, logLine);
-            
+
             if (this.autoCommitEnabled) {
                 this.autoCommit();
             }
@@ -55,7 +55,7 @@ export class CopilotLogger {
         try {
             const { execSync } = require('child_process');
             const logDir = path.dirname(this.LOG_FILE);
-            
+
             // Check if we're in a git repository
             try {
                 execSync('git rev-parse --git-dir', { cwd: logDir, stdio: 'ignore' });
@@ -66,9 +66,9 @@ export class CopilotLogger {
 
             // Add and commit the log file
             execSync(`git add "${this.LOG_FILE}"`, { cwd: logDir, stdio: 'ignore' });
-            execSync(`git commit -m "Auto-commit: Copilot chat log update ${new Date().toISOString()}"`, { 
-                cwd: logDir, 
-                stdio: 'ignore' 
+            execSync(`git commit -m "Auto-commit: Copilot chat log update ${new Date().toISOString()}"`, {
+                cwd: logDir,
+                stdio: 'ignore'
             });
         } catch (error) {
             // Silently fail auto-commit to avoid disrupting chat functionality

@@ -226,6 +226,7 @@ export class ChatParticipantRequestHandler {
 				undefined;
 
 			let result = this.checkCommandUsage(command);
+			let intentHandler: DefaultIntentRequestHandler | undefined;
 
 			if (!result) {
 				// this is norm-case, e.g checkCommandUsage didn't produce an error-result
@@ -238,7 +239,7 @@ export class ChatParticipantRequestHandler {
 				if (typeof intent.handleRequest === 'function') {
 					chatResult = intent.handleRequest(this.conversation, this.request, this.stream, this.token, this.documentContext, this.chatAgentArgs.agentName, this.location, this.chatTelemetry, this.onPaused);
 				} else {
-					const intentHandler = this._instantiationService.createInstance(DefaultIntentRequestHandler, intent, this.conversation, this.request, this.stream, this.token, this.documentContext, this.location, this.chatTelemetry, undefined, this.onPaused);
+					intentHandler = this._instantiationService.createInstance(DefaultIntentRequestHandler, intent, this.conversation, this.request, this.stream, this.token, this.documentContext, this.location, this.chatTelemetry, undefined, this.onPaused);
 					chatResult = intentHandler.getResult();
 				}
 
@@ -281,7 +282,8 @@ export class ChatParticipantRequestHandler {
 						sessionId: this.conversation.sessionId,
 						agentId: this.chatAgentArgs.agentId,
 						command: this.request.command,
-						location: ChatLocation.toStringShorter(this.location)
+						location: ChatLocation.toStringShorter(this.location),
+						model: this.chatTelemetry.model || 'unknown'
 					}
 				);
 			} catch (logError) {
