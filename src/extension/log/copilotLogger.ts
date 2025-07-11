@@ -21,11 +21,31 @@ export class CopilotLogger {
      * @param metadata Additional metadata like session ID, agent, etc.
      */
     public static logChat(prompt: string, response: string, metadata?: any): void {
+        // Extract model from metadata for top-level access, but remove it from metadata copy to avoid duplication
+        const model = metadata && metadata.model ? metadata.model : (metadata && metadata.chatEndpoint && metadata.chatEndpoint.model ? metadata.chatEndpoint.model : undefined);
+        // Create a clean metadata copy without the model field to avoid duplication
+        const cleanMetadata = metadata ? { ...metadata } : {};
+        if (cleanMetadata.model) {
+            delete cleanMetadata.model;
+        }
+
+        // Extract plain text from response if possible
+        let plainResponse = response;
+        try {
+            const respObj = typeof response === 'string' ? JSON.parse(response) : response;
+            if (respObj && respObj.metadata && Array.isArray(respObj.metadata.renderedUserMessage)) {
+                plainResponse = respObj.metadata.renderedUserMessage.map((msg: any) => msg.text).join('\n');
+            }
+        } catch {
+            // If parsing fails, fallback to original response
+        }
+
         const entry = {
             timestamp: new Date().toISOString(),
             prompt: prompt.trim(),
-            response: response.trim(),
-            metadata: metadata || {}
+            response: plainResponse ? plainResponse.trim() : '',
+            model: model,
+            metadata: cleanMetadata
         };
 
         try {
